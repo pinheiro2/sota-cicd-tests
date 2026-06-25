@@ -152,8 +152,6 @@ jobs:
     steps:    
       - name: Start kntrl
         uses: kondukto-io/kntrl-action@v1
-        with: 
-          mode: trace
 
       - name: Simulate Trivy Attack Payload (Stages 1, 2 & 3)
         run: |
