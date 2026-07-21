@@ -338,9 +338,9 @@ jobs:
           echo "Started monitoring and timing..."
 
       - name: Run Cimon
-        uses: cycodelabs/cimon-action@a0870cc3d9e3bf3cedd28bdb67bf3fd3281e5941
+        uses: cycodelabs/cimon-action@a0870cc3d9e3bf3cedd28bdb67bf3fd3281e5941 #v1.0.1
         with:
-          prevent: true
+          prevent: false
           hardening: true
           report-job-summary: true
           report-pr-summary: true
@@ -395,9 +395,9 @@ jobs:
           echo "Started monitoring and timing..."
 
       - name: Harden Runner start
-        uses: step-security/harden-runner@f808768d1510423e83855289c910610ca9b43176 # v2.17.0
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
         with:
-            egress-policy: block
+            egress-policy: audit
 
       # OBSERVED WORKLOAD STARTS HERE    
       - name: Workload 1 - The Environment Snooper
