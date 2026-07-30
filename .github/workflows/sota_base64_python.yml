@@ -1,4 +1,4 @@
-name: Base64 encoding test
+name: Base64 encoding + python test
 
 on: workflow_dispatch
 
