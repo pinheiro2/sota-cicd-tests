@@ -1,8 +1,8 @@
 name: 'Lifecycle Timer'
-description: 'Tracks metrics and duration including post-execution phases'
+description: 'Times workflow execution through all post steps without hanging'
 inputs:
   job_name:
-    description: 'Name of the job for artifact naming compatibility'
+    description: 'Name of the job for artifact naming'
     required: true
 runs:
   using: 'node20'
