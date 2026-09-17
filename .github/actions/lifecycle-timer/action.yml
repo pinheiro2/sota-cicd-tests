@@ -5,31 +5,6 @@ inputs:
     description: 'Name of the job for artifact naming compatibility'
     required: true
 runs:
-  using: 'composite'
-  steps:
-    - shell: bash
-      run: |
-        sudo apt-get update && sudo apt-get install -y sysstat
-        mkdir -p /tmp/metrics
-        pidstat -u -r -d -l 1 > /tmp/metrics/pidstat.log &
-        echo $! > /tmp/metrics/monitor.pid
-        echo "START_TIME=$(date +%s.%N)" > /tmp/metrics/timing.env
-        echo "Started monitoring and timing..."
-  post:
-    using: 'composite'
-    steps:
-      - shell: bash
-        run: |
-          END_TIME=$(date +%s.%N)
-          source /tmp/metrics/timing.env
-          DURATION=$(awk "BEGIN {print $END_TIME - $START_TIME}")
-          echo "END_TIME=$END_TIME" >> /tmp/metrics/timing.env
-          echo "DURATION=$DURATION" >> /tmp/metrics/timing.env
-          
-          kill $(cat /tmp/metrics/monitor.pid) || true
-          echo "Stopped monitoring. Total time: $DURATION seconds."
-
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: metrics-${{ inputs.job_name }}-${{ github.run_id }}
-          path: /tmp/metrics/
+  using: 'node20'
+  main: 'index.js'
+  post: 'post.js'
