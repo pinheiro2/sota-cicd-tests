@@ -7,17 +7,13 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
-      actions: read
+      actions: write
     steps:
-      - name: Setup Metrics & Start Monitor
-        run: |
-          sudo apt-get update && sudo apt-get install -y sysstat
-          mkdir -p /tmp/metrics
-          # Standardized internal filenames
-          pidstat -u -r -d -l 1 > /tmp/metrics/pidstat.log &
-          echo $! > /tmp/metrics/monitor.pid
-          echo "START_TIME=$(date +%s.%N)" > /tmp/metrics/timing.env
-          echo "Started monitoring and timing..."
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/lifecycle-timer
+        with:
+          job_name: profile_falco
 
       - name: Start Falco
         uses: falcosecurity/falco-actions/start@54d299d4c40de1ad6bf680fefbbfed1bc5b8f057
@@ -39,45 +35,19 @@ jobs:
         with:
           mode: analyze
 
-      - name: Stop Monitor & Record Time
-        # always() ensures the monitor stops and uploads even if the script fails
-        if: always() 
-        run: |
-          END_TIME=$(date +%s.%N)
-          source /tmp/metrics/timing.env
-          DURATION=$(awk "BEGIN {print $END_TIME - $START_TIME}")
-          echo "END_TIME=$END_TIME" >> /tmp/metrics/timing.env
-          echo "DURATION=$DURATION" >> /tmp/metrics/timing.env
-          
-          kill $(cat /tmp/metrics/monitor.pid) || true
-          echo "Stopped monitoring. Total time: $DURATION seconds."
-      
-      - name: Export Original Analyze Metrics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: metrics-profile_falco-${{ github.run_id }}
-          path: /tmp/metrics/
-
   my_analyze:
     runs-on: ubuntu-24.04
     needs: profile_falco
     permissions:
       contents: read
-      actions: read
+      actions: write
     steps:
-      - name: Setup Metrics & Start Monitor
-        run: |
-          sudo apt-get update && sudo apt-get install -y sysstat
-          mkdir -p /tmp/metrics
-          # Standardized internal filenames
-          pidstat -u -r -d -l 1 > /tmp/metrics/pidstat.log &
-          echo $! > /tmp/metrics/monitor.pid
-          echo "START_TIME=$(date +%s.%N)" > /tmp/metrics/timing.env
-          echo "Started monitoring and timing..."
-
       - name: Checkout Code
         uses: actions/checkout@v6
+
+      - uses: ./.github/actions/lifecycle-timer
+        with:
+          job_name: my_analyze
 
       - name: Download Falco Capture Artifact
         uses: actions/download-artifact@v8
@@ -123,8 +93,8 @@ jobs:
             output: >
               Environment variables accessed (file=%fd.name cmdline=%proc.cmdline pid=%proc.pid ppid=%proc.ppid)
             priority: WARNING
-            tags: [thesis_env] 
-            
+            tags: [thesis_env]  
+
           - rule: Detect Memory Access via Procfs
             desc: Detect attempts to read memory directly from the /proc directory
             condition: evt.type in (open, openat, openat2) and fd.name glob "/proc/*/mem"
@@ -220,42 +190,18 @@ jobs:
             ./falco-data/baseline.json
             ./falco-data/security_summary.md
 
-      - name: Stop Monitor & Record Time
-        # always() ensures the monitor stops and uploads even if the script fails
-        if: always() 
-        run: |
-          END_TIME=$(date +%s.%N)
-          source /tmp/metrics/timing.env
-          DURATION=$(awk "BEGIN {print $END_TIME - $START_TIME}")
-          echo "END_TIME=$END_TIME" >> /tmp/metrics/timing.env
-          echo "DURATION=$DURATION" >> /tmp/metrics/timing.env
-          
-          kill $(cat /tmp/metrics/monitor.pid) || true
-          echo "Stopped monitoring. Total time: $DURATION seconds."
-
-      - name: Export Analyze Metrics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: metrics-my_analyze-${{ github.run_id }}
-          path: /tmp/metrics/
-
   falco_analyze:
       runs-on: ubuntu-24.04
       needs: profile_falco
       permissions:
         contents: read
-        actions: read
+        actions: write
       steps:
-        - name: Setup Metrics & Start Monitor
-          run: |
-            sudo apt-get update && sudo apt-get install -y sysstat
-            mkdir -p /tmp/metrics
-            # Standardized internal filenames
-            pidstat -u -r -d -l 1 > /tmp/metrics/pidstat.log &
-            echo $! > /tmp/metrics/monitor.pid
-            echo "START_TIME=$(date +%s.%N)" > /tmp/metrics/timing.env
-            echo "Started monitoring and timing..."
+        - uses: actions/checkout@v6
+
+        - uses: ./.github/actions/lifecycle-timer
+          with:
+            job_name: falco_analyze
 
         - name: Analyze
           uses: falcosecurity/falco-actions/analyze@54d299d4c40de1ad6bf680fefbbfed1bc5b8f057
@@ -264,42 +210,19 @@ jobs:
             extract-written-files: true
             extract-chisels: true
             extract-hashes: true  
-            
-        - name: Stop Monitor & Record Time
-          # always() ensures the monitor stops and uploads even if the script fails
-          if: always() 
-          run: |
-            END_TIME=$(date +%s.%N)
-            source /tmp/metrics/timing.env
-            DURATION=$(awk "BEGIN {print $END_TIME - $START_TIME}")
-            echo "END_TIME=$END_TIME" >> /tmp/metrics/timing.env
-            echo "DURATION=$DURATION" >> /tmp/metrics/timing.env
-            
-            kill $(cat /tmp/metrics/monitor.pid) || true
-            echo "Stopped monitoring. Total time: $DURATION seconds."
-          
-        - name: Export Original Analyze Metrics
-          if: always()
-          uses: actions/upload-artifact@v4
-          with:
-            name: metrics-falco_analyze-${{ github.run_id }}
-            path: /tmp/metrics/
 
   naked:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
-      actions: read
+      actions: write
     steps:
-      - name: Setup Metrics & Start Monitor
-        run: |
-          sudo apt-get update && sudo apt-get install -y sysstat
-          mkdir -p /tmp/metrics
-          # Standardized internal filenames
-          pidstat -u -r -d -l 1 > /tmp/metrics/pidstat.log &
-          echo $! > /tmp/metrics/monitor.pid
-          echo "START_TIME=$(date +%s.%N)" > /tmp/metrics/timing.env
-          echo "Started monitoring and timing..."
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/lifecycle-timer
+        with:
+          job_name: naked
+
       # OBSERVED WORKLOAD STARTS HERE    
       - name: Workload 2 - The Shadow Reader
         run: |
@@ -308,42 +231,18 @@ jobs:
           head -n 1 /etc/shadow > /dev/null || true
           echo "File read attempt complete."
       # OBSERVED WORKLOAD ENDS HERE
-      - name: Stop Monitor & Record Time
-        # always() ensures the monitor stops and uploads even if the script fails
-        if: always() 
-        run: |
-          END_TIME=$(date +%s.%N)
-          source /tmp/metrics/timing.env
-          DURATION=$(awk "BEGIN {print $END_TIME - $START_TIME}")
-          echo "END_TIME=$END_TIME" >> /tmp/metrics/timing.env
-          echo "DURATION=$DURATION" >> /tmp/metrics/timing.env
-          
-          kill $(cat /tmp/metrics/monitor.pid) || true
-          echo "Stopped monitoring. Total time: $DURATION seconds."
-        
-      - name: Export Original Analyze Metrics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: metrics-naked-${{ github.run_id }}
-          path: /tmp/metrics/
-
 
   cimon:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
-      actions: read
+      actions: write
     steps:
-      - name: Setup Metrics & Start Monitor
-        run: |
-          sudo apt-get update && sudo apt-get install -y sysstat
-          mkdir -p /tmp/metrics
-          # Standardized internal filenames
-          pidstat -u -r -d -l 1 > /tmp/metrics/pidstat.log &
-          echo $! > /tmp/metrics/monitor.pid
-          echo "START_TIME=$(date +%s.%N)" > /tmp/metrics/timing.env
-          echo "Started monitoring and timing..."
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/lifecycle-timer
+        with:
+          job_name: cimon
 
       - name: Run Cimon
         uses: cycodelabs/cimon-action@a0870cc3d9e3bf3cedd28bdb67bf3fd3281e5941 #v1.0.1
@@ -366,41 +265,17 @@ jobs:
           echo "File read attempt complete."
       # OBSERVED WORKLOAD ENDS HERE
 
-      - name: Stop Monitor & Record Time
-        # always() ensures the monitor stops and uploads even if the script fails
-        if: always() 
-        run: |
-          END_TIME=$(date +%s.%N)
-          source /tmp/metrics/timing.env
-          DURATION=$(awk "BEGIN {print $END_TIME - $START_TIME}")
-          echo "END_TIME=$END_TIME" >> /tmp/metrics/timing.env
-          echo "DURATION=$DURATION" >> /tmp/metrics/timing.env
-          
-          kill $(cat /tmp/metrics/monitor.pid) || true
-          echo "Stopped monitoring. Total time: $DURATION seconds."
-        
-      - name: Export Original Analyze Metrics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: metrics-cimon-${{ github.run_id }}
-          path: /tmp/metrics/
-
   harden-runner:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
-      actions: read
+      actions: write
     steps:  
-      - name: Setup Metrics & Start Monitor
-        run: |
-          sudo apt-get update && sudo apt-get install -y sysstat
-          mkdir -p /tmp/metrics
-          # Standardized internal filenames
-          pidstat -u -r -d -l 1 > /tmp/metrics/pidstat.log &
-          echo $! > /tmp/metrics/monitor.pid
-          echo "START_TIME=$(date +%s.%N)" > /tmp/metrics/timing.env
-          echo "Started monitoring and timing..."
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/lifecycle-timer
+        with:
+          job_name: harden-runner
 
       - name: Harden Runner start
         uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
@@ -415,41 +290,18 @@ jobs:
           head -n 1 /etc/shadow > /dev/null || true
           echo "File read attempt complete."
       # OBSERVED WORKLOAD ENDS HERE
-      - name: Stop Monitor & Record Time
-        # always() ensures the monitor stops and uploads even if the script fails
-        if: always() 
-        run: |
-          END_TIME=$(date +%s.%N)
-          source /tmp/metrics/timing.env
-          DURATION=$(awk "BEGIN {print $END_TIME - $START_TIME}")
-          echo "END_TIME=$END_TIME" >> /tmp/metrics/timing.env
-          echo "DURATION=$DURATION" >> /tmp/metrics/timing.env
-          
-          kill $(cat /tmp/metrics/monitor.pid) || true
-          echo "Stopped monitoring. Total time: $DURATION seconds."
-        
-      - name: Export Original Analyze Metrics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: metrics-harden-runner-${{ github.run_id }}
-          path: /tmp/metrics/
 
   kntrl:
     runs-on: ubuntu-22.04
     permissions:
       contents: read
-      actions: read
+      actions: write
     steps:    
-      - name: Setup Metrics & Start Monitor
-        run: |
-          sudo apt-get update && sudo apt-get install -y sysstat
-          mkdir -p /tmp/metrics
-          # Standardized internal filenames
-          pidstat -u -r -d -l 1 > /tmp/metrics/pidstat.log &
-          echo $! > /tmp/metrics/monitor.pid
-          echo "START_TIME=$(date +%s.%N)" > /tmp/metrics/timing.env
-          echo "Started monitoring and timing..."
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/lifecycle-timer
+        with:
+          job_name: kntrl
 
       - name: Start kntrl
         uses: kondukto-io/kntrl-action@v1
@@ -466,23 +318,3 @@ jobs:
       - name: Stop kntrl
         uses: kondukto-io/kntrl-action/stop@v1
         if: always()
-      
-      - name: Stop Monitor & Record Time
-        # always() ensures the monitor stops and uploads even if the script fails
-        if: always() 
-        run: |
-          END_TIME=$(date +%s.%N)
-          source /tmp/metrics/timing.env
-          DURATION=$(awk "BEGIN {print $END_TIME - $START_TIME}")
-          echo "END_TIME=$END_TIME" >> /tmp/metrics/timing.env
-          echo "DURATION=$DURATION" >> /tmp/metrics/timing.env
-          
-          kill $(cat /tmp/metrics/monitor.pid) || true
-          echo "Stopped monitoring. Total time: $DURATION seconds."
-        
-      - name: Export Original Analyze Metrics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: metrics-kntrl-${{ github.run_id }}
-          path: /tmp/metrics/
