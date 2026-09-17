@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: ./.github/actions/lifecycle-timer
+      - uses: pinheiro2/lifecycle-timer@main
         with:
           job_name: profile_falco
 
@@ -50,7 +50,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v6
 
-      - uses: ./.github/actions/lifecycle-timer
+      - uses: pinheiro2/lifecycle-timer@main
         with:
           job_name: my_analyze
 
@@ -204,7 +204,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: ./.github/actions/lifecycle-timer
+      - uses: pinheiro2/lifecycle-timer@main
         with:
           job_name: falco_analyze
 
@@ -224,7 +224,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: ./.github/actions/lifecycle-timer
+      - uses: pinheiro2/lifecycle-timer@main
         with:
           job_name: naked
 
@@ -250,7 +250,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: ./.github/actions/lifecycle-timer
+      - uses: pinheiro2/lifecycle-timer@main
         with:
           job_name: cimon
 
@@ -288,7 +288,7 @@ jobs:
     steps:  
       - uses: actions/checkout@v6
 
-      - uses: ./.github/actions/lifecycle-timer
+      - uses: pinheiro2/lifecycle-timer@main
         with:
           job_name: harden-runner
 
@@ -319,7 +319,7 @@ jobs:
     steps:    
       - uses: actions/checkout@v6
 
-      - uses: ./.github/actions/lifecycle-timer
+      - uses: pinheiro2/lifecycle-timer@main
         with:
           job_name: kntrl
 
