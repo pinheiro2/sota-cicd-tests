@@ -131,6 +131,14 @@ jobs:
             priority: WARNING
             tags: [thesis_env]  
 
+          - rule: Detect Memory Access via Procfs
+            desc: Detect attempts to read memory directly from the /proc directory
+            condition: evt.type in (open, openat, openat2) and fd.name glob "/proc/*/mem"
+            output: >
+              Memory accessed via procfs (file=%fd.name cmdline=%proc.cmdline pid=%proc.pid ppid=%proc.ppid)
+            priority: WARNING
+            tags: [thesis_mem_scraping]
+
           - rule: Detect Suspicious Dropper/Staging Activity
             desc: Catch malware writing new files to temp directories (bypasses tar/zip execve)
             condition: >
