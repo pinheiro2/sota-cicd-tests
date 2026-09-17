@@ -1,5 +1,5 @@
 name: 'Lifecycle Timer'
-description: 'Times workflow execution through all post steps without hanging'
+description: 'Times workflow execution through all post steps and uploads metrics'
 inputs:
   job_name:
     description: 'Name of the job for artifact naming'

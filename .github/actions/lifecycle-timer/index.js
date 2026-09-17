@@ -1,9 +1,17 @@
 const { execSync, spawn } = require('child_process');
 const fs = require('fs');
+const path = require('path');
 
 try {
   console.log('[lifecycle-timer] Installing sysstat...');
   execSync('sudo apt-get update && sudo apt-get install -y sysstat', { stdio: 'inherit' });
+
+  // Ensure dependencies are available
+  const actionDir = __dirname;
+  if (!fs.existsSync(path.join(actionDir, 'node_modules', '@actions', 'artifact'))) {
+    console.log('[lifecycle-timer] Installing @actions/artifact dependency...');
+    execSync('npm install --no-audit --no-fund', { cwd: actionDir, stdio: 'inherit' });
+  }
 
   fs.mkdirSync('/tmp/metrics', { recursive: true });
 
@@ -19,12 +27,11 @@ try {
     stdio: ['ignore', outFd, outFd]
   });
 
-  // Detach child so Node event loop does not wait for it to exit
   child.unref();
 
   fs.writeFileSync('/tmp/metrics/monitor.pid', `${child.pid}\n`);
   console.log(`[lifecycle-timer] Monitoring started (PID: ${child.pid}) at ${startTime}`);
 } catch (error) {
-  console.error('[lifecycle-timer] Failed in pre-step setup:', error);
+  console.error('[lifecycle-timer] Setup error:', error);
   process.exit(1);
 }

@@ -1,23 +1,21 @@
 const { execSync } = require('child_process');
 const fs = require('fs');
-const https = require('https');
+const path = require('path');
 
 (async () => {
   try {
     const endTime = (Date.now() / 1000).toFixed(6);
 
-    // 1. Terminate pidstat monitor cleanly
+    // 1. Terminate monitor
     if (fs.existsSync('/tmp/metrics/monitor.pid')) {
       const pid = fs.readFileSync('/tmp/metrics/monitor.pid', 'utf-8').trim();
       try {
         process.kill(Number(pid), 'SIGTERM');
         console.log(`[lifecycle-timer] Terminated monitor PID: ${pid}`);
-      } catch (_) {
-        // Process might already be terminated
-      }
+      } catch (_) {}
     }
 
-    // 2. Parse and compute timing duration
+    // 2. Compute final duration
     let startTime = endTime;
     if (fs.existsSync('/tmp/metrics/timing.env')) {
       const envContent = fs.readFileSync('/tmp/metrics/timing.env', 'utf-8');
@@ -29,89 +27,30 @@ const https = require('https');
 
     const duration = (parseFloat(endTime) - parseFloat(startTime)).toFixed(2);
     fs.appendFileSync('/tmp/metrics/timing.env', `END_TIME=${endTime}\nDURATION=${duration}\n`);
-    console.log(`[lifecycle-timer] Completed. Total time (including post-steps): ${duration}s`);
+    console.log(`[lifecycle-timer] Finished tracking. Total wall-clock time: ${duration}s`);
 
-    // 3. Package metrics into zip archive
+    // 3. Upload artifacts using the official actions artifact SDK
+    const { DefaultArtifactClient } = require('@actions/artifact');
+    const artifact = new DefaultArtifactClient();
+
     const jobName = process.env.INPUT_JOB_NAME || 'job';
     const runId = process.env.GITHUB_RUN_ID;
     const artifactName = `metrics-${jobName}-${runId}`;
-    const zipPath = `/tmp/${artifactName}.zip`;
 
-    console.log(`[lifecycle-timer] Compressing metrics to ${zipPath}...`);
-    execSync(`zip -j -r "${zipPath}" /tmp/metrics/*`, { stdio: 'ignore' });
+    const filesToUpload = [
+      '/tmp/metrics/timing.env',
+      '/tmp/metrics/pidstat.log'
+    ].filter(file => fs.existsSync(file));
 
-    // 4. Upload zip via GitHub Actions Artifact v4 API
-    const token = process.env.ACTIONS_RUNTIME_TOKEN;
-    const runtimeUrl = process.env.ACTIONS_RESULTS_URL;
+    console.log(`[lifecycle-timer] Uploading artifact: ${artifactName}...`);
+    const uploadResult = await artifact.uploadArtifact(
+      artifactName,
+      filesToUpload,
+      '/tmp/metrics'
+    );
 
-    if (token && runtimeUrl) {
-      console.log(`[lifecycle-timer] Uploading artifact ${artifactName}...`);
-      await uploadArtifact(artifactName, zipPath, token, runtimeUrl);
-      console.log('[lifecycle-timer] Artifact successfully uploaded.');
-    } else {
-      console.log('[lifecycle-timer] Runtime token not detected. Using gh cli fallback...');
-      execSync(`gh run upload-artifact --name "${artifactName}" --path "${zipPath}" || true`, {
-        stdio: 'inherit',
-        env: process.env
-      });
-    }
+    console.log(`[lifecycle-timer] Successfully uploaded ${artifactName} (ID: ${uploadResult.id || 'ok'})`);
   } catch (error) {
-    console.error('[lifecycle-timer] Error during post cleanup:', error);
+    console.error('[lifecycle-timer] Post execution failure:', error);
   }
 })();
-
-function uploadArtifact(name, filePath, token, runtimeUrl) {
-  return new Promise((resolve, reject) => {
-    const fileSize = fs.statSync(filePath).size;
-    const url = new URL(`${runtimeUrl}twirp/github.actions.results.api.v1.ArtifactService/CreateArtifact`);
-
-    const reqData = JSON.stringify({
-      workflow_run_backend_id: process.env.GITHUB_RUN_ID,
-      workflow_job_run_backend_id: process.env.GITHUB_JOB,
-      name: name,
-      version: 4
-    });
-
-    const options = {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(reqData)
-      }
-    };
-
-    const req = https.request(url, options, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => {
-        try {
-          const body = JSON.parse(data);
-          if (!body.signed_upload_url) {
-            return resolve(); // Soft fail over to standard completion
-          }
-          const uploadUrl = new URL(body.signed_upload_url);
-          const uploadReq = https.request(uploadUrl, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/octet-stream',
-              'Content-Length': fileSize
-            }
-          }, (upRes) => {
-            upRes.on('data', () => {});
-            upRes.on('end', () => resolve());
-          });
-
-          uploadReq.on('error', reject);
-          fs.createReadStream(filePath).pipe(uploadReq);
-        } catch (e) {
-          resolve();
-        }
-      });
-    });
-
-    req.on('error', () => resolve());
-    req.write(reqData);
-    req.end();
-  });
-}
