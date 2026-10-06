@@ -25,7 +25,6 @@ jobs:
       - name: Curl Wikipedia
         run: |
           curl -I https://www.wikipedia.org
-          python3 .github/scripts/hello_world.py
       # OBSERVED WORKLOAD ENDS HERE
 
       - name: Stop Falco
